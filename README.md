@@ -1,4 +1,4 @@
-# 🌿 AgriGuard AI - Crop Disease Detection
+# 🌿 Crop Disease Detection
 
 Check out Here --> https://crop-disease-detection-using-leaf-image.streamlit.app/
 ---
