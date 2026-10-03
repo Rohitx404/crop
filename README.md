@@ -2,7 +2,7 @@
 
 Check out Here --> https://crop-disease-detection-using-leaf-image.streamlit.app/
 ---
-AgriGuard AI is an AI-powered crop disease detection system designed to help farmers quickly identify plant diseases through leaf image analysis. Using **Deep Learning & Computer Vision**, it provides accurate and real-time results, enabling early intervention to prevent crop loss. 
+FasalVaidya AI is an AI-powered crop disease detection system designed to help farmers quickly identify plant diseases through leaf image analysis. Using **Deep Learning & Computer Vision**, it provides accurate and real-time results, enabling early intervention to prevent crop loss. 
 
 ---
 
@@ -24,14 +24,6 @@ AgriGuard AI is an AI-powered crop disease detection system designed to help far
 
 ---
 
-## 🛠️ Tech Stack
-- **Frontend:** Streamlit (Python-based UI)  
-- **Backend:** TensorFlow, Keras, NumPy  
-- **Machine Learning Model:** Convolutional Neural Networks (CNN)  
-- **Deployment:** Streamlit Cloud / Local Server  
-
----
-
 ## 📂 Dataset Information
 - **Source:** [Plant Diseases Dataset](https://www.kaggle.com/datasets/vipoooool/new-plant-diseases-dataset) 🌱  
 - **Images:** 87,000+ labeled plant leaf images  
@@ -40,34 +32,14 @@ AgriGuard AI is an AI-powered crop disease detection system designed to help far
 
 ---
 
-## 🚀 Installation Guide
-### 1️⃣ Clone the Repository
-```bash
-  git clone https://github.com/yourusername/AgriGuard-AI.git
-  cd AgriGuard-AI
-```
-
-### 2️⃣ Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 3️⃣ Run the App
-```bash
-streamlit run app.py
-```
-
 ## 📎 Demo & Deployment
 
 🔗 **Live Demo:** https://crop-disease-detection-using-leaf-image.streamlit.app/
-
-📂 **GitHub Repository:** 
 
 ---
 
 ## 📢 Connect With Me
 👤 **Developer:** Rohit kumar 
-🔗 **Follow Me:** 
 
 ---
 

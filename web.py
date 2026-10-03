@@ -87,9 +87,12 @@ st.markdown("""
 }
 
 /* hero: the one bold moment */
-.hero{background:var(--ink);border-radius:22px;padding:2.4rem 2rem 2.2rem;margin-bottom:1rem;}
-.stApp .hero h1{color:#f4f7ea;font-size:2.7rem;line-height:1.08;margin:0 0 .8rem;font-weight:800;}
-.stApp .hero p{color:#cfdcc4;font-size:1.12rem;max-width:34rem;margin:0;}
+.hero{background:var(--ink);border-radius:22px;padding:1.6rem 1.8rem;margin-bottom:1rem;
+      min-height:200px;display:flex;flex-direction:column;justify-content:center;}
+.stApp .hero h1{color:#f4f7ea !important;font-size:2.3rem;line-height:1.1;margin:0 0 .6rem;padding:0;font-weight:800;}
+.stApp .hero p{color:#cfdcc4 !important;font-size:1.08rem;max-width:34rem;margin:0;}
+[data-testid="stHeaderActionElements"]{display:none !important;}
+.brand svg{width:min(320px,80%);height:auto;display:block;margin:0 0 .8rem;}
 
 /* stats strip */
 .strip{display:flex;flex-wrap:wrap;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:1.4rem 0;}
@@ -158,6 +161,13 @@ with st.container(key="bottom_nav"):
     page = st.radio("Navigate", [HOME, DETECT, ABOUT], horizontal=True,
                     key="page", label_visibility="collapsed")
 
+def show_logo():
+    try:
+        with open("fasalvaidya-logo.svg", encoding="utf-8") as f:
+            svg = " ".join(line.strip() for line in f)
+        st.markdown(f'<div class="brand">{svg}</div>', unsafe_allow_html=True)
+    except OSError:
+        pass
 
 def go_detect():
     st.session_state["page"] = DETECT
@@ -168,7 +178,7 @@ def render_home():
     st.markdown("""
     <div class="hero">
       <h1>Catch crop disease before it spreads.</h1>
-      <p>Photograph a leaf and AgriGuard AI names the problem in seconds.
+      <p>Photograph a leaf and FasalVaidya AI names the problem in seconds.
          With Gemini, it also explains what to do next in your own language.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -285,7 +295,7 @@ def render_detect():
 
 
 def render_about():
-    st.header("About AgriGuard AI")
+    st.header("About FasalVaidya AI")
     st.write("An AI tool that helps farmers identify plant diseases from a leaf photo, "
              "so they can act early and reduce crop losses.")
 
@@ -304,7 +314,7 @@ def render_about():
 - Validation accuracy: 98.7%
 - Advice layer: Gemini API explains the diagnosis, checks the photo, and suggests treatment
         """)
-    st.caption("© 2025 AgriGuard AI. Developed by Rohit in Pune.")
+    st.caption("© 2026 FasalVaidya AI. Developed by Rohit kumar.")
 
-
+show_logo()
 {HOME: render_home, DETECT: render_detect, ABOUT: render_about}[page]()
