@@ -17,7 +17,7 @@ except Exception:
 
 
 st.set_page_config(
-    page_title="AgriGuard AI",
+    page_title="FasalVaidya AI",
     page_icon="🌿",
     layout="centered",
     initial_sidebar_state="collapsed",
