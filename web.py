@@ -57,9 +57,31 @@ st.markdown("""
 .stApp{background:var(--sage);}
 .block-container{max-width:860px;padding:2rem 1.2rem 8rem;}
 
-.stApp, .stApp p, .stApp li, .stApp label, .stApp span, .stApp div[data-testid="stCaptionContainer"]{
+.stApp, .stApp p, .stApp li, .stApp label, .stApp div[data-testid="stCaptionContainer"]{
   color:var(--ink); font-family:'Source Sans 3',system-ui,sans-serif;
 }
+.stApp span{color:var(--ink);}
+/* keep Streamlit's icon font (expander arrows etc.) */
+.stApp [data-testid="stIconMaterial"], .stApp [data-testid="stIconMaterial"] *,
+.stApp [class*="material-symbols"], .stApp [class*="material-icons"]{
+  font-family:'Material Symbols Rounded','Material Icons' !important;
+  font-feature-settings:'liga' !important; letter-spacing:normal !important;
+}
+
+/* explicit widget colors so nothing depends on the viewer's light/dark theme */
+:root{color-scheme:light;}
+[data-testid="stFileUploaderDropzone"] button, [data-testid="stBaseButton-secondary"]{
+  background:var(--paper) !important;border:1px solid var(--leaf) !important;border-radius:10px !important;}
+[data-testid="stFileUploaderDropzone"] button *, [data-testid="stBaseButton-secondary"] *{color:var(--ink) !important;}
+[data-testid="stFileUploaderDropzone"] button:hover, [data-testid="stBaseButton-secondary"]:hover{
+  background:var(--leaf) !important;}
+[data-testid="stFileUploaderDropzone"] button:hover *, [data-testid="stBaseButton-secondary"]:hover *{color:#fff !important;}
+[data-testid="stFileUploaderDropzone"] small, [data-testid="stFileUploaderDropzone"] span{color:var(--ink) !important;}
+[data-testid="stAlert"]{background:#fff !important;border:1px solid var(--line) !important;
+  border-left:6px solid var(--marigold) !important;border-radius:12px !important;}
+[data-testid="stAlert"] *{color:var(--ink) !important;}
+[data-baseweb="select"] > div{background:var(--paper) !important;border:1px solid var(--line) !important;}
+[data-baseweb="select"] *{color:var(--ink) !important;}
 .stApp h1, .stApp h2, .stApp h3, .stApp h4{
   color:var(--ink); font-family:'Bricolage Grotesque',system-ui,sans-serif; letter-spacing:-0.01em;
 }
@@ -227,13 +249,19 @@ def render_detect():
     st.caption("Use a clear photo of one leaf in good light.")
     ai_on = gemini_available()
 
-    file = st.file_uploader("Leaf photo", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+    source = st.radio("Photo source", ["📁 Upload photo", "📷 Take photo"], horizontal=True,
+                      key="photo_source", label_visibility="collapsed")
+    if source.startswith("📁"):
+        file = st.file_uploader("Leaf photo", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+    else:
+        file = st.camera_input("Take a photo of the leaf", label_visibility="collapsed")
+
     if not file:
-        st.info("Upload a leaf photo to begin.")
+        st.info("Add a leaf photo to begin.")
         return
 
     data = file.getvalue()
-    fid = f"{file.name}-{file.size}"
+    fid = f"{getattr(file, 'name', 'camera')}-{len(data)}"
 
     left, right = st.columns(2)
     with left:
@@ -276,6 +304,7 @@ def render_about():
 - Validation accuracy: 98.7%
 - Advice layer: Gemini API explains the diagnosis, checks the photo, and suggests treatment
         """)
-   
+    st.caption("© 2025 AgriGuard AI. Developed by Rohit in Pune.")
+
 
 {HOME: render_home, DETECT: render_detect, ABOUT: render_about}[page]()

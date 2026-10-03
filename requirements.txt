@@ -7,3 +7,6 @@ tensorflow
 keras
 opencv-python
 scipy
+streamlit>=1.39
+google-genai
+pillow
