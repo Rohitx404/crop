@@ -276,7 +276,6 @@ def render_about():
 - Validation accuracy: 98.7%
 - Advice layer: Gemini API explains the diagnosis, checks the photo, and suggests treatment
         """)
-    st.caption("© 2025 AgriGuard AI. Developed by Rohit in Pune.")
-
+   
 
 {HOME: render_home, DETECT: render_detect, ABOUT: render_about}[page]()
