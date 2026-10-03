@@ -1,206 +1,282 @@
+import io
+import os
+
+import numpy as np
 import streamlit as st
 import tensorflow as tf
-import numpy as np
+from PIL import Image
 
-# Tensorflow Model Prediction
-def model_prediction(test_image):
-    model = tf.keras.models.load_model('trained_model.keras')
-    image = tf.keras.preprocessing.image.load_img(test_image, target_size=(128, 128))
-    input_arr = tf.keras.preprocessing.image.img_to_array(image)
-    input_arr = np.array([input_arr])  # Convert single image to a batch
-    prediction = model.predict(input_arr)
-    result_index = np.argmax(prediction)
-    return result_index
+# Gemini is optional: the app still works with only the CNN if the key/package is missing.
+try:
+    from gemini_helper import get_advice, gemini_available
+except Exception:
+    get_advice = None
 
-# Custom CSS for styling
+    def gemini_available():
+        return False
+
+
+st.set_page_config(
+    page_title="AgriGuard AI",
+    page_icon="🌿",
+    layout="centered",
+    initial_sidebar_state="collapsed",
+)
+
+HOME, DETECT, ABOUT = "🏠 Home", "🔬 Detect", "📖 About"
+
+CLASS_NAMES = [
+    'Apple - Apple Scab', 'Apple - Black Rot', 'Apple - Cedar Apple Rust', 'Apple - Healthy',
+    'Blueberry - Healthy', 'Cherry - Powdery Mildew', 'Cherry - Healthy',
+    'Corn - Cercospora Leaf Spot', 'Corn - Common Rust', 'Corn - Northern Leaf Blight', 'Corn - Healthy',
+    'Grape - Black Rot', 'Grape - Esca (Black Measles)', 'Grape - Leaf Blight', 'Grape - Healthy',
+    'Orange - Huanglongbing (Citrus Greening)', 'Peach - Bacterial Spot', 'Peach - Healthy',
+    'Bell Pepper - Bacterial Spot', 'Bell Pepper - Healthy',
+    'Potato - Early Blight', 'Potato - Late Blight', 'Potato - Healthy',
+    'Raspberry - Healthy', 'Soybean - Healthy', 'Squash - Powdery Mildew',
+    'Strawberry - Leaf Scorch', 'Strawberry - Healthy',
+    'Tomato - Bacterial Spot', 'Tomato - Early Blight', 'Tomato - Late Blight', 'Tomato - Leaf Mold',
+    'Tomato - Septoria Leaf Spot', 'Tomato - Spider Mites', 'Tomato - Target Spot',
+    'Tomato - Yellow Leaf Curl Virus', 'Tomato - Mosaic Virus', 'Tomato - Healthy',
+]
+
+# ---------------------------------------------------------------- styling
 st.markdown("""
-    <style>
-    .main {background-color: #f5f5f5;}
-    .stButton>button {
-        color: white;
-        background-color: #4CAF50;
-        border-radius: 5px;
-        padding: 0.5rem 1rem;
-    }
-    .stButton>button:hover {
-        background-color: #45a049;
-        color: white;
-    }
-    .stFileUploader>div>div>div>button {
-        color: white;
-        background-color: #2196F3;
-    }
-    .prediction-result {
-        padding: 1rem;
-        border-radius: 10px;
-        background-color: #e8f5e9;
-        margin: 1rem 0;
-    }
-    .sidebar-logo {
-        display: block;
-        margin: 0 auto 1.5rem auto;
-        padding: 0.5rem;
-    }
-    </style>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Source+Sans+3:wght@400;600&display=swap');
+
+:root{
+  --ink:#14301f; --leaf:#2f6b3f; --sage:#eef3e6; --paper:#fbfcf7;
+  --marigold:#f2a007; --soil:#6b4423; --line:#d5dfc8; --alert:#b3261e;
+}
+
+/* remove default chrome + sidebar */
+#MainMenu, header, footer, [data-testid="stSidebar"], [data-testid="collapsedControl"],
+[data-testid="stToolbar"], [data-testid="stDecoration"]{display:none !important;}
+
+.stApp{background:var(--sage);}
+.block-container{max-width:860px;padding:2rem 1.2rem 8rem;}
+
+.stApp, .stApp p, .stApp li, .stApp label, .stApp span, .stApp div[data-testid="stCaptionContainer"]{
+  color:var(--ink); font-family:'Source Sans 3',system-ui,sans-serif;
+}
+.stApp h1, .stApp h2, .stApp h3, .stApp h4{
+  color:var(--ink); font-family:'Bricolage Grotesque',system-ui,sans-serif; letter-spacing:-0.01em;
+}
+
+/* hero: the one bold moment */
+.hero{background:var(--ink);border-radius:22px;padding:2.4rem 2rem 2.2rem;margin-bottom:1rem;}
+.stApp .hero h1{color:#f4f7ea;font-size:2.7rem;line-height:1.08;margin:0 0 .8rem;font-weight:800;}
+.stApp .hero p{color:#cfdcc4;font-size:1.12rem;max-width:34rem;margin:0;}
+
+/* stats strip */
+.strip{display:flex;flex-wrap:wrap;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:1.4rem 0;}
+.strip div{flex:1 1 120px;padding:.9rem 1rem;border-left:1px solid var(--line);}
+.strip div:first-child{border-left:none;padding-left:0;}
+.strip b{display:block;font-family:'Bricolage Grotesque',sans-serif;font-size:1.7rem;color:var(--leaf);}
+.strip span{font-size:.92rem;}
+
+/* steps (a real sequence) */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.8rem;margin:.6rem 0 1rem;}
+.step{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:1rem;}
+.step b{font-family:'Bricolage Grotesque',sans-serif;font-size:1.05rem;display:block;margin-bottom:.25rem;}
+.step i{font-style:normal;color:var(--soil);font-weight:600;}
+
+/* result card */
+.result{background:var(--paper);border:1px solid var(--line);border-left:8px solid var(--alert);
+        border-radius:14px;padding:1.2rem 1.4rem;margin:1rem 0;}
+.result.ok{border-left-color:var(--leaf);}
+.result small{color:var(--soil);font-weight:600;}
+.stApp .result h2{margin:.15rem 0 .5rem;font-size:1.9rem;}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;}
+.bar div{height:100%;background:var(--leaf);}
+
+/* widgets */
+[data-testid="stFileUploaderDropzone"]{background:var(--paper);border:2px dashed #7fa47f;border-radius:14px;}
+[data-testid="stExpander"]{background:var(--paper);border:1px solid var(--line);border-radius:12px;}
+[data-testid="stImage"] img{border-radius:16px;}
+button[kind="primary"], [data-testid="stBaseButton-primary"]{
+  background:var(--marigold) !important;border:none !important;border-radius:10px !important;font-weight:700 !important;}
+button[kind="primary"] p, [data-testid="stBaseButton-primary"] p{color:var(--ink) !important;}
+
+/* bottom dock (replaces sidebar) */
+.st-key-bottom_nav{
+  position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:1000;width:max-content;max-width:94vw;
+  background:var(--ink);border-radius:999px;padding:6px;box-shadow:0 8px 30px rgba(20,48,31,.35);
+}
+.st-key-bottom_nav [role="radiogroup"]{gap:2px;flex-wrap:nowrap;justify-content:center;}
+.st-key-bottom_nav label[data-baseweb="radio"]{margin:0;padding:9px 22px;border-radius:999px;cursor:pointer;}
+.st-key-bottom_nav label[data-baseweb="radio"] > div:first-child{display:none;}
+.st-key-bottom_nav label[data-baseweb="radio"] p{color:#cfdcc4;font-weight:600;white-space:nowrap;}
+.st-key-bottom_nav label[data-baseweb="radio"]:has(input:checked){background:var(--marigold);}
+.st-key-bottom_nav label[data-baseweb="radio"]:has(input:checked) p{color:var(--ink);font-weight:800;}
+
+@media (max-width:640px){
+  .stApp .hero h1{font-size:2rem;}
+  .st-key-bottom_nav label[data-baseweb="radio"]{padding:9px 14px;}
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------- model
+@st.cache_resource
+def load_model():
+    return tf.keras.models.load_model("trained_model.keras")
+
+
+def model_prediction(image_bytes):
+    image = tf.keras.preprocessing.image.load_img(io.BytesIO(image_bytes), target_size=(128, 128))
+    arr = np.array([tf.keras.preprocessing.image.img_to_array(image)])
+    prediction = load_model().predict(arr, verbose=0)
+    return int(np.argmax(prediction)), float(np.max(prediction)) * 100
+
+
+# ---------------------------------------------------------------- navigation
+with st.container(key="bottom_nav"):
+    page = st.radio("Navigate", [HOME, DETECT, ABOUT], horizontal=True,
+                    key="page", label_visibility="collapsed")
+
+
+def go_detect():
+    st.session_state["page"] = DETECT
+
+
+# ---------------------------------------------------------------- pages
+def render_home():
+    st.markdown("""
+    <div class="hero">
+      <h1>Catch crop disease before it spreads.</h1>
+      <p>Photograph a leaf and AgriGuard AI names the problem in seconds.
+         With Gemini, it also explains what to do next in your own language.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.button("Check a leaf now", type="primary", on_click=go_detect)
+
+    st.markdown("""
+    <div class="strip">
+      <div><b>38</b><span>conditions recognised</span></div>
+      <div><b>14</b><span>crops covered</span></div>
+      <div><b>98.7%</b><span>validation accuracy</span></div>
+      <div><b>&lt; 5 s</b><span>per leaf</span></div>
+    </div>
     """, unsafe_allow_html=True)
 
-# Sidebar with Logo
-st.sidebar.image("logo3.png",  use_container_width=True, caption="AI-Powered Crop Protection")
+    if os.path.exists("homeIMG.jpg"):
+        st.image("homeIMG.jpg", use_container_width=True, caption="Healthy crops, better harvest")
 
-st.sidebar.title("AgriGuard AI")
-app_mode = st.sidebar.radio("Navigate", ["Home", "About", "Crop Disease Recognition"], index=0)
-st.sidebar.markdown("---")
-st.sidebar.info("ℹ️ Upload plant leaf images for quick disease diagnosis")
-
-# Home Page
-if app_mode == "Home":
-    st.header("🌿 Smart Crop Disease Recognition System")
-    st.markdown("---")
-    
-    # Center the image
-    col1, col2, col3 = st.columns([1, 6, 1])
-    with col2:
-        image_path = "homeIMG.jpg"
-        st.image(image_path, use_container_width=True, caption="Healthy Crops, Better Harvest")
-    
+    st.subheader("How it works")
     st.markdown("""
-    ### Welcome to Agricultural AI Guardian!
-    **Our mission**: Empower farmers with instant plant disease detection using advanced AI technology. 
-    Upload a leaf image and get instant diagnosis to protect your crops effectively.
+    <div class="steps">
+      <div class="step"><i>1</i><b>Photograph</b>Take a clear photo of one affected leaf.</div>
+      <div class="step"><i>2</i><b>Upload</b>Open Detect and add the photo.</div>
+      <div class="step"><i>3</i><b>Analyze</b>The CNN identifies the crop and condition.</div>
+      <div class="step"><i>4</i><b>Act</b>Gemini explains treatment and prevention.</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    🚀 **How It Works**
-    1. **Capture** - Take a clear photo of the suspect plant leaf
-    2. **Upload** - Visit **Crop Disease Recognition** page to submit your image
-    3. **Analyze** - Our AI processes the image using deep learning
-    4. **Results** - Get instant diagnosis and management tips
 
-    ✨ **Key Benefits**
-    - 🎯 95% Accuracy: State-of-the-art convolutional neural networks
-    - ⚡ Real-time Results: Diagnosis in under 5 seconds
-    - 🌍 38+ Plant Varieties Supported: From apples to tomatoes
-    - 📱 Mobile-friendly: Works seamlessly on all devices
+def render_result(res):
+    plant, disease = CLASS_NAMES[res["idx"]].split(" - ", 1)
+    healthy = "Healthy" in disease
+    cls = "result ok" if healthy else "result"
+    head = f"{plant} looks healthy" if healthy else disease
+    st.markdown(f"""
+    <div class="{cls}">
+      <small>{plant}</small>
+      <h2>{head}</h2>
+      <div class="bar"><div style="width:{res['conf']:.0f}%"></div></div>
+      <small>Model confidence {res['conf']:.1f}%</small>
+    </div>
+    """, unsafe_allow_html=True)
 
-    ### Getting Started
-    👉 Select **Crop Disease Recognition** from the sidebar to begin your analysis!
-    """)
+    if res["conf"] < 60:
+        st.warning("Low confidence. Try a sharper, closer photo of a single leaf in daylight.")
 
-# About Page
-elif app_mode == "About":
-    st.header("📚 About This Project")
-    st.markdown("---")
-    
-    with st.expander("🌐 Project Overview", expanded=True):
+    advice = res.get("advice")
+    if advice is None:
+        if not gemini_available():
+            st.caption("Treatment advice is off. Add GEMINI_API_KEY to enable it.")
+        return
+    if "error" in advice:
+        st.warning("AI advice is unavailable right now: " + str(advice["error"])[:160])
+        return
+
+    if not advice.get("is_leaf", True):
+        st.warning("Gemini does not see a plant leaf in this photo. Upload a clear leaf image.")
+    elif not advice.get("agrees_with_cnn", True):
+        st.warning("Gemini reads this leaf differently from the model. Please confirm with an agriculture expert.")
+
+    st.subheader("What to do next")
+    st.write(advice.get("explanation", ""))
+    st.markdown(f"**Severity:** {advice.get('severity', '-')}")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Organic treatment**")
+        st.write(advice.get("organic_treatment", "-"))
+    with c2:
+        st.markdown("**Chemical treatment**")
+        st.write(advice.get("chemical_treatment", "-"))
+    st.markdown("**Prevention**")
+    st.write(advice.get("prevention", "-"))
+    st.caption(advice.get("warning") or
+               "AI-generated advice. Confirm with your local agriculture officer before spraying.")
+
+
+def render_detect():
+    st.header("Check a leaf")
+    st.caption("Use a clear photo of one leaf in good light.")
+    ai_on = gemini_available()
+
+    file = st.file_uploader("Leaf photo", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+    if not file:
+        st.info("Upload a leaf photo to begin.")
+        return
+
+    data = file.getvalue()
+    fid = f"{file.name}-{file.size}"
+
+    left, right = st.columns(2)
+    with left:
+        st.image(data, use_container_width=True)
+    with right:
+        lang = st.selectbox("Advice language", ["Hindi", "English", "Marathi"]) if ai_on else "English"
+        go = st.button("Analyze leaf", type="primary", use_container_width=True)
+
+    if go:
+        with st.spinner("Reading the leaf..."):
+            idx, conf = model_prediction(data)
+            advice = None
+            if ai_on and get_advice:
+                pil = Image.open(io.BytesIO(data)).convert("RGB")
+                advice = get_advice(pil, CLASS_NAMES[idx], conf, lang)
+        st.session_state["result"] = {"fid": fid, "idx": idx, "conf": conf, "advice": advice}
+
+    res = st.session_state.get("result")
+    if res and res["fid"] == fid:
+        render_result(res)
+
+
+def render_about():
+    st.header("About AgriGuard AI")
+    st.write("An AI tool that helps farmers identify plant diseases from a leaf photo, "
+             "so they can act early and reduce crop losses.")
+
+    with st.expander("Dataset", expanded=True):
         st.markdown("""
-        This AI-powered solution helps farmers quickly identify plant diseases through leaf image analysis, 
-        enabling early intervention and reducing crop losses.
+- Source: [Plant Diseases Dataset](https://www.kaggle.com/datasets/vipoooool/new-plant-diseases-dataset)
+- 87,000+ RGB images across 38 classes, 256x256 pixels
+- Training split: 70,295 images (80%), validation split: 17,572 images (20%)
+- Test set: 33 curated real-world images
+- Augmentation: rotation, flipping and zoom
         """)
-    
-    with st.expander("📊 Dataset Information"):
+    with st.expander("Technical architecture"):
         st.markdown("""
-        #### Original Dataset
-        - Source: [Plant Diseases Dataset](https://www.kaggle.com/datasets/vipoooool/new-plant-diseases-dataset)
-        - Total Images: 87,000+ RGB images
-        - Categories: 38 plant disease classes
-        - Resolution: 256x256 pixels
-        
-        #### Our Implementation
-        - Training Split: 70,295 images (80%)
-        - Validation Split: 17,572 images (20%)
-        - Test Set: 33 curated real-world images
-        - Augmentation: Rotation, flipping, and zoom variations
+- Framework: TensorFlow 2.0
+- Model: custom 16-layer CNN, trained for 50 epochs with the Adam optimizer
+- Validation accuracy: 98.7%
+- Advice layer: Gemini API explains the diagnosis, checks the photo, and suggests treatment
         """)
-    
-    with st.expander("🛠️ Technical Architecture"):
-        st.markdown("""
-        - **Framework**: TensorFlow 2.0
-        - **Model**: Custom CNN with 16-layer architecture
-        - **Training**: 50 epochs with Adam optimizer
-        - **Accuracy**: 98.7% validation accuracy
-        - **Inference**: GPU-accelerated predictions
-        """)
-    st.write("© 2025 AgriGuard AI | Developed with ❤️‍🔥 by Rohit in Pune")    
-        
+    st.caption("© 2025 AgriGuard AI. Developed by Rohit in Pune.")
 
-# Prediction Page
-elif app_mode == "Crop Disease Recognition":
-    st.header(" Crop Disease Analysis 🔍")
-    st.markdown("---")
-    
-    # File Upload Section
-    st.subheader("📤 Step 1: Upload Leaf Image")
-    test_image = st.file_uploader("Choose a plant leaf image:", type=["jpg", "png", "jpeg"], 
-                                 help="Select clear photo of a single plant leaf")
-    
-    if test_image:
-        # Image Preview
-        st.subheader("Image Preview 📷")
-        with st.expander("Click to view uploaded image", expanded=True):
-            st.image(test_image, use_container_width=True, caption="Uploaded Leaf Image")
-        
-        # Prediction Section
-        st.subheader("Step 2: Disease Diagnosis")
-        if st.button(" Start Analysis 🚀", type="primary"):
-            with st.spinner("🔍 Analyzing leaf patterns..."):
-                result_index = model_prediction(test_image)
-                
-                # Class Names Formatting
-                class_name = [
-                    'Apple - Apple Scab',
-                    'Apple - Black Rot',
-                    'Apple - Cedar Apple Rust',
-                    'Apple - Healthy',
-                    'Blueberry - Healthy',
-                    'Cherry - Powdery Mildew',
-                    'Cherry - Healthy',
-                    'Corn - Cercospora Leaf Spot',
-                    'Corn - Common Rust',
-                    'Corn - Northern Leaf Blight',
-                    'Corn - Healthy',
-                    'Grape - Black Rot',
-                    'Grape - Esca (Black Measles)',
-                    'Grape - Leaf Blight',
-                    'Grape - Healthy',
-                    'Orange - Huanglongbing (Citrus Greening)',
-                    'Peach - Bacterial Spot',
-                    'Peach - Healthy',
-                    'Bell Pepper - Bacterial Spot',
-                    'Bell Pepper - Healthy',
-                    'Potato - Early Blight',
-                    'Potato - Late Blight',
-                    'Potato - Healthy',
-                    'Raspberry - Healthy',
-                    'Soybean - Healthy',
-                    'Squash - Powdery Mildew',
-                    'Strawberry - Leaf Scorch',
-                    'Strawberry - Healthy',
-                    'Tomato - Bacterial Spot',
-                    'Tomato - Early Blight',
-                    'Tomato - Late Blight',
-                    'Tomato - Leaf Mold',
-                    'Tomato - Septoria Leaf Spot',
-                    'Tomato - Spider Mites',
-                    'Tomato - Target Spot',
-                    'Tomato - Yellow Leaf Curl Virus',
-                    'Tomato - Mosaic Virus',
-                    'Tomato - Healthy'
-                ]
-                
-                # Display Results
-                st.markdown("---")
-                st.subheader("📋 Diagnosis Report")
-                
-                diagnosis = class_name[result_index]
-                plant, disease = diagnosis.split(" - ")
-                
-                if "Healthy" in disease:
-                    st.success(f"🎉 Great news! This {plant.lower()} plant appears healthy!")
-                else:
-                    st.error(f"⚠️ Alert: Potential {disease} detected in {plant.lower()}!")
-                
-                # Result Card
-                st.markdown(f"""
-                <div class="prediction-result">
-                    <h3 style="color:#2e7d32;"> Plant: {plant}</h3>
-                    <h3 style="color:#d32f2f;">Condition: {disease}</h3>
-                </div>
-                """, unsafe_allow_html=True)
+
+{HOME: render_home, DETECT: render_detect, ABOUT: render_about}[page]()
